@@ -14,6 +14,7 @@ import { CoverageModule } from './modules/coverage/coverage.module';
 import { RepoModule } from './modules/repo/repo.module';
 // import { ConfigModule } from './modules/system-config/system-config.module';
 import { JSONScalar } from './scalars/json.scalar';
+import {SubtitleModule} from "./modules/subtitle/subtitle.module";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { JSONScalar } from './scalars/json.scalar';
     RepoModule,
     // CodeModule,
     ConfigModule,
+    SubtitleModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'client'),
       exclude: ['/graphql'], // 这样就不会触发 path-to-regexp 解析错误

@@ -7,9 +7,15 @@ type RepoList {
   keyword: String
 }
 
+type RepoList1 {
+  data: [JSON!]!
+  keyword: String
+}
+
 """Arbitrary JSON value"""
 scalar JSON
 
 type Query {
   repos(keyword: String, bu: [String!]): RepoList!
+  subtitle(keyword: String, bu: [String!]): RepoList1!
 }

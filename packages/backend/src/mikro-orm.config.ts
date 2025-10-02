@@ -5,6 +5,8 @@ import { ConfigEntity } from './entities/config.entity';
 import { CoverageEntity } from './entities/coverage.entity';
 import { CoverageMapRelationEntity } from './entities/coverage-map-relation.entity';
 import { RepoEntity } from './entities/repo.entity';
+import {SubtitleEntity} from "./modules/subtitle/subtitle.entity";
+import {ProjectEntity} from "./modules/subtitle/project.entity";
 
 const logger = new Logger('MikroORM');
 
@@ -14,6 +16,8 @@ export default defineConfig({
     CoverageEntity,
     CoverageMapRelationEntity,
     RepoEntity,
+    SubtitleEntity,
+    ProjectEntity,
   ],
   clientUrl: process.env.DATABASE_URL,
   highlighter: new SqlHighlighter(),
