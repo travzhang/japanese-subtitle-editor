@@ -6,15 +6,16 @@ export class SubtitleEntity {
   @PrimaryKey()
   id!: string;
 
-  @Property()
+  @Property({ fieldName: 'start_time' })
   startTime!: string;
 
-  @Property()
+  @Property({ fieldName: 'end_time' })
   endTime!: string;
 
-  @Property({
-    fieldName: 'description',
-  })
+  @Property({ fieldName: 'project_id' })
+  projectId!: string;
+
+  @Property({ fieldName: 'content' })
   content!: JSONScalar;
 
   @Property({ fieldName: 'created_at' })

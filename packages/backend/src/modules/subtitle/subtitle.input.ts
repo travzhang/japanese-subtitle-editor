@@ -1,0 +1,53 @@
+import { Field, InputType } from '@nestjs/graphql';
+import { JSONScalar } from '../../scalars/json.scalar';
+
+@InputType()
+export class SubtitleListInput {
+  @Field()
+  projectId!: string;
+
+  @Field({ nullable: true })
+  startAfter?: string; // optional filter: startTime >= startAfter
+
+  @Field({ nullable: true })
+  endBefore?: string; // optional filter: endTime <= endBefore
+}
+
+@InputType()
+export class SubtitleCreateInput {
+  @Field()
+  projectId!: string;
+
+  @Field()
+  startTime!: string;
+
+  @Field()
+  endTime!: string;
+
+  @Field(() => JSONScalar)
+  content!: unknown; // { chinese: string; translateList: Array<{ ja: string; fiftytonesromaji: string }>} 
+}
+
+@InputType()
+export class SubtitleUpdateInput {
+  @Field()
+  id!: string; // projectId + startTime
+
+  @Field({ nullable: true })
+  startTime?: string;
+
+  @Field({ nullable: true })
+  endTime?: string;
+
+  @Field(() => JSONScalar, { nullable: true })
+  content?: unknown;
+}
+
+@InputType()
+export class SubtitleDeleteInput {
+  @Field()
+  id!: string; // projectId + startTime
+}
+
+
+

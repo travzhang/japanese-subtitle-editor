@@ -16,10 +16,6 @@ CREATE TABLE "public"."subtitle" (
                                   "end_time" TEXT NOT NULL,
   "project_id" TEXT NOT NULL,
   "content" JSONB NOT NULL,
---                                   "ja" TEXT NOT NULL,
---                                   "fiftytones" TEXT NOT NULL,
---                                   "romaji" TEXT NOT NULL,
---                                   "chinese" TEXT NOT NULL,
                                   "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                   "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

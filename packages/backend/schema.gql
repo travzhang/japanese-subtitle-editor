@@ -15,13 +15,54 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type SubtitleOutput {
+  id: String!
+  projectId: String!
+  startTime: String!
+  endTime: String!
+  content: JSON!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
 """Arbitrary JSON value"""
 scalar JSON
 
 type Query {
   project(input: ProjectInput!): ProjectOutput!
+  subtitles(input: SubtitleListInput!): [SubtitleOutput!]!
 }
 
 input ProjectInput {
   projectID: String!
+}
+
+input SubtitleListInput {
+  projectId: String!
+  startAfter: String
+  endBefore: String
+}
+
+type Mutation {
+  createSubtitle(input: SubtitleCreateInput!): SubtitleOutput!
+  updateSubtitle(input: SubtitleUpdateInput!): SubtitleOutput
+  deleteSubtitle(input: SubtitleDeleteInput!): Boolean!
+}
+
+input SubtitleCreateInput {
+  projectId: String!
+  startTime: String!
+  endTime: String!
+  content: JSON!
+}
+
+input SubtitleUpdateInput {
+  id: String!
+  startTime: String
+  endTime: String
+  content: JSON
+}
+
+input SubtitleDeleteInput {
+  id: String!
 }
