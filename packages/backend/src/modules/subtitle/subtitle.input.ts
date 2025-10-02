@@ -4,7 +4,7 @@ import { JSONScalar } from '../../scalars/json.scalar';
 @InputType()
 export class SubtitleListInput {
   @Field()
-  projectId!: string;
+  projectID!: string;
 
   @Field({ nullable: true })
   startAfter?: string; // optional filter: startTime >= startAfter
@@ -16,7 +16,7 @@ export class SubtitleListInput {
 @InputType()
 export class SubtitleCreateInput {
   @Field()
-  projectId!: string;
+  projectID!: string;
 
   @Field()
   startTime!: string;

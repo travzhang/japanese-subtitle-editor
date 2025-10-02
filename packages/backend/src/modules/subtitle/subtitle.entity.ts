@@ -13,7 +13,7 @@ export class SubtitleEntity {
   endTime!: string;
 
   @Property({ fieldName: 'project_id' })
-  projectId!: string;
+  projectID!: string;
 
   @Property({ fieldName: 'content' })
   content!: JSONScalar;

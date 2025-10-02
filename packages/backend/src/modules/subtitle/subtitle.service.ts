@@ -19,19 +19,19 @@ export class SubtitleService {
     return s
   }
 
-  private buildId(projectId: string, startTime: string): string {
-    return `${projectId}_${startTime}`;
+  private buildId(projectID: string, startTime: string): string {
+    return `${projectID}_${startTime}`;
   }
 
   async list(input: SubtitleListInput): Promise<SubtitleEntity[]> {
-    const where: any = { projectId: input.projectId };
+    const where: any = { projectID: input.projectID };
     if (input.startAfter) where.startTime = { $gte: input.startAfter };
     if (input.endBefore) where.endTime = { $lte: input.endBefore };
     return this.subtitleRepo.find(where, { orderBy: { startTime: 'asc' } });
   }
 
   async create(input: SubtitleCreateInput): Promise<SubtitleEntity> {
-    const id = this.buildId(input.projectId, input.startTime);
+    const id = this.buildId(input.projectID, input.startTime);
     const exists = await this.subtitleRepo.findOne({ id });
     if (exists) {
       // 简单覆盖策略：若已存在相同起始时间，直接更新内容与结束时间
@@ -43,7 +43,7 @@ export class SubtitleService {
     }
     const entity = this.subtitleRepo.create({
       id,
-      projectId: input.projectId,
+      projectID: input.projectID,
       startTime: input.startTime,
       endTime: input.endTime,
       content: input.content as any,

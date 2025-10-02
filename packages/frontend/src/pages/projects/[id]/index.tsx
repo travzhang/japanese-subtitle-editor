@@ -1,13 +1,16 @@
 import {useParams} from "react-router-dom";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {Button, Input, Slider, Space, Table, Typography, Upload, message, Popconfirm} from "antd";
+import {gql, useMutation, useQuery} from "@apollo/client";
 import type { UploadProps } from "antd";
 
+type TranslateUnit = { ja: string; fiftytonesromaji: string };
+type ContentPayload = { chinese: string; translateList: TranslateUnit[] };
 type SubtitleItem = {
   id: string;
   start: number; // seconds
   end: number;   // seconds
-  text: string;
+  content: ContentPayload;
 };
 
 function pad(num: number, size: number) {
@@ -50,7 +53,7 @@ function parseSrt(content: string): SubtitleItem[] {
     const start = parseTime(tm[1]);
     const end = parseTime(tm[2]);
     const text = textLines.join("\n");
-    items.push({ id: crypto.randomUUID(), start, end, text });
+    items.push({ id: crypto.randomUUID(), start, end, content: { chinese: text, translateList: [{ ja: "", fiftytonesromaji: "" }] } });
   }
   return items.sort((a,b) => a.start - b.start);
 }
@@ -63,7 +66,7 @@ function toSrt(items: SubtitleItem[]): string {
       return [
         String(idx + 1),
         `${toSrtTime(it.start)} --> ${toSrtTime(it.end)}`,
-        it.text || ""
+        it.content?.chinese || ""
       ].join("\n");
     })
     .join("\n\n");
@@ -102,6 +105,62 @@ const ProjectDetail = () => {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [subtitles, setSubtitles] = useState<SubtitleItem[]>([]);
 
+  const pid = (projectID as any).id as string | undefined;
+
+  const SUBTITLES = gql`
+    query Subtitles($input: SubtitleListInput!) {
+      subtitles(input: $input) {
+        id
+        projectID
+        startTime
+        endTime
+        content
+      }
+    }
+  `;
+  const CREATE_SUBTITLE = gql`
+    mutation CreateSubtitle($input: SubtitleCreateInput!) {
+      createSubtitle(input: $input) {
+        id
+      }
+    }
+  `;
+  const UPDATE_SUBTITLE = gql`
+    mutation UpdateSubtitle($input: SubtitleUpdateInput!) {
+      updateSubtitle(input: $input) {
+        id
+      }
+    }
+  `;
+  const DELETE_SUBTITLE = gql`
+    mutation DeleteSubtitle($input: SubtitleDeleteInput!) {
+      deleteSubtitle(input: $input)
+    }
+  `;
+
+  const { data, loading, refetch } = useQuery(SUBTITLES, {
+    variables: { input: { projectID: pid } },
+    skip: !pid,
+    fetchPolicy: "cache-and-network",
+  });
+  const [createSubtitle] = useMutation(CREATE_SUBTITLE);
+  const [updateSubtitle] = useMutation(UPDATE_SUBTITLE);
+  const [deleteSubtitleMut] = useMutation(DELETE_SUBTITLE);
+
+  useEffect(() => {
+    if (!data?.subtitles) return;
+    const list = (data.subtitles as any[]).map((s) => {
+      const start = parseTime(String(s.startTime));
+      const end = parseTime(String(s.endTime));
+      const content: ContentPayload = (s.content as any) || { chinese: "", translateList: [{ ja: "", fiftytonesromaji: "" }] };
+      if (!Array.isArray(content.translateList) || content.translateList.length === 0) {
+        content.translateList = [{ ja: "", fiftytonesromaji: "" }];
+      }
+      return { id: s.id as string, start, end, content } as SubtitleItem;
+    });
+    setSubtitles(list);
+  }, [data]);
+
   const onLoadedMetadata = () => {
     const d = videoRef.current?.duration ?? 0;
     setDuration(isFinite(d) ? d : 0);
@@ -115,14 +174,28 @@ const ProjectDetail = () => {
   const addFromCurrent = () => {
     const start = videoRef.current?.currentTime ?? 0;
     const end = Math.min(start + 2, duration || start + 2);
+    const row: SubtitleItem = { id: crypto.randomUUID(), start, end, content: { chinese: "", translateList: [{ ja: "", fiftytonesromaji: "" }] } };
     setSubtitles((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), start, end, text: "" },
+      row,
     ].sort((a,b) => a.start - b.start));
+    if (pid) {
+      void createSubtitle({
+        variables: {
+          input: {
+            projectID: pid,
+            startTime: formatTime(start),
+            endTime: formatTime(end),
+            content: row.content,
+          }
+        }
+      }).then(() => refetch());
+    }
   };
 
   const deleteRow = (id: string) => {
     setSubtitles((prev) => prev.filter((s) => s.id !== id));
+    void deleteSubtitleMut({ variables: { input: { id } } }).then(() => refetch());
   };
 
   const playAt = (time: number) => {
@@ -154,15 +227,50 @@ const ProjectDetail = () => {
       )
     },
     {
-      title: "文本",
-      dataIndex: "text",
+      title: "中文",
       render: (_: unknown, record: SubtitleItem) => (
         <Input.TextArea
           autoSize={{ minRows: 1, maxRows: 4 }}
-          value={record.text}
+          value={record.content?.chinese || ""}
           onChange={(e) => {
             const val = e.target.value;
-            setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, text: val } : s));
+            setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, content: { ...s.content, chinese: val } } : s));
+          }}
+        />
+      )
+    },
+    {
+      title: "日文",
+      render: (_: unknown, record: SubtitleItem) => (
+        <Input.TextArea
+          autoSize={{ minRows: 1, maxRows: 4 }}
+          value={record.content?.translateList?.[0]?.ja || ""}
+          onChange={(e) => {
+            const val = e.target.value;
+            setSubtitles((prev) => prev.map(s => {
+              if (s.id !== record.id) return s;
+              const list = Array.isArray(s.content.translateList) && s.content.translateList.length > 0 ? s.content.translateList.slice() : [{ ja: "", fiftytonesromaji: "" }];
+              list[0] = { ...list[0], ja: val };
+              return { ...s, content: { ...s.content, translateList: list } };
+            }));
+          }}
+        />
+      )
+    },
+    {
+      title: "罗马音",
+      render: (_: unknown, record: SubtitleItem) => (
+        <Input.TextArea
+          autoSize={{ minRows: 1, maxRows: 4 }}
+          value={record.content?.translateList?.[0]?.fiftytonesromaji || ""}
+          onChange={(e) => {
+            const val = e.target.value;
+            setSubtitles((prev) => prev.map(s => {
+              if (s.id !== record.id) return s;
+              const list = Array.isArray(s.content.translateList) && s.content.translateList.length > 0 ? s.content.translateList.slice() : [{ ja: "", fiftytonesromaji: "" }];
+              list[0] = { ...list[0], fiftytonesromaji: val };
+              return { ...s, content: { ...s.content, translateList: list } };
+            }));
           }}
         />
       )
@@ -173,6 +281,18 @@ const ProjectDetail = () => {
       render: (_: unknown, record: SubtitleItem) => (
         <Space size={8}>
           <Button size="small" onClick={() => playAt(record.start)}>播放</Button>
+          <Button size="small" type="primary" onClick={() => {
+            void updateSubtitle({
+              variables: {
+                input: {
+                  id: record.id,
+                  startTime: formatTime(record.start),
+                  endTime: formatTime(record.end),
+                  content: record.content,
+                }
+              }
+            }).then(() => refetch());
+          }}>保存</Button>
           <Popconfirm title="删除此条字幕？" onConfirm={() => deleteRow(record.id)}>
             <Button size="small" danger>删除</Button>
           </Popconfirm>
@@ -284,7 +404,7 @@ const ProjectDetail = () => {
                   key={s.id}
                   className="absolute top-0 h-3 bg-blue-400/60 hover:bg-blue-500 rounded"
                   style={{ left, width }}
-                  title={`${formatTime(s.start)} - ${formatTime(s.end)}\n${s.text}`}
+                  title={`${formatTime(s.start)} - ${formatTime(s.end)}\n${s.content?.chinese || ""}`}
                 />
               );
             })}

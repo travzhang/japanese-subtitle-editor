@@ -7,7 +7,7 @@ export class SubtitleOutput {
   id!: string;
 
   @Field()
-  projectId!: string;
+  projectID!: string;
 
   @Field()
   startTime!: string;
