@@ -25,7 +25,7 @@ export class SubtitleCreateInput {
   endTime!: string;
 
   @Field(() => JSONScalar)
-  content!: unknown; // { chinese: string; translateList: Array<{ ja: string; fiftytonesromaji: string }>} 
+  content!: unknown; // { chinese: string; translateList: Array<{ ja: string; fiftytones: string; romaji: string }>}  // romaji 兼容旧字段 fiftytonesromaji
 }
 
 @InputType()

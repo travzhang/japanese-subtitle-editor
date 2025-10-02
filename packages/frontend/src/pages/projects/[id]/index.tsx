@@ -1,10 +1,11 @@
 import {useParams} from "react-router-dom";
 import {useEffect, useMemo, useRef, useState} from "react";
-import {Button, Input, Slider, Space, Table, Typography, Upload, message, Popconfirm} from "antd";
+import {Button, Input, Slider, Space, Typography, Upload, message, Popconfirm, Drawer, Form, List} from "antd";
 import {gql, useMutation, useQuery} from "@apollo/client";
 import type { UploadProps } from "antd";
+import ContentRender from "@/components/ContentRender";
 
-type TranslateUnit = { ja: string; fiftytonesromaji: string };
+type TranslateUnit = { ja: string; fiftytones: string; romaji: string };
 type ContentPayload = { chinese: string; translateList: TranslateUnit[] };
 type SubtitleItem = {
   id: string;
@@ -53,7 +54,7 @@ function parseSrt(content: string): SubtitleItem[] {
     const start = parseTime(tm[1]);
     const end = parseTime(tm[2]);
     const text = textLines.join("\n");
-    items.push({ id: String(Math.random()), start, end, content: { chinese: text, translateList: [{ ja: "", fiftytonesromaji: "" }] } });
+    items.push({ id: String(Math.random()), start, end, content: { chinese: text, translateList: [{ ja: "", fiftytones: "", romaji: "" }] } });
   }
   return items.sort((a,b) => a.start - b.start);
 }
@@ -104,6 +105,9 @@ const ProjectDetail = () => {
   const [duration, setDuration] = useState<number>(0);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [subtitles, setSubtitles] = useState<SubtitleItem[]>([]);
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+  const [editing, setEditing] = useState<SubtitleItem | null>(null);
+  const [form] = Form.useForm();
 
   const pid = (projectID as any).id as string | undefined;
 
@@ -152,10 +156,14 @@ const ProjectDetail = () => {
     const list = (data.subtitles as any[]).map((s) => {
       const start = parseTime(String(s.startTime));
       const end = parseTime(String(s.endTime));
-      const content: ContentPayload = (s.content as any) || { chinese: "", translateList: [{ ja: "", fiftytonesromaji: "" }] };
-      if (!Array.isArray(content.translateList) || content.translateList.length === 0) {
-        content.translateList = [{ ja: "", fiftytonesromaji: "" }];
-      }
+      const raw = (s.content as any) || { chinese: "", translateList: [{ ja: "", fiftytones: "", romaji: "" }] };
+      let translateList: TranslateUnit[] = Array.isArray(raw.translateList) ? raw.translateList.map((it: any) => ({
+        ja: String(it?.ja ?? ""),
+        fiftytones: String(it?.fiftytones ?? ""),
+        romaji: String((it?.romaji ?? it?.fiftytonesromaji) ?? ""), // 向后兼容
+      })) : [];
+      if (translateList.length === 0) translateList = [{ ja: "", fiftytones: "", romaji: "" }];
+      const content: ContentPayload = { chinese: String(raw.chinese ?? ""), translateList };
       return { id: s.id as string, start, end, content } as SubtitleItem;
     });
     setSubtitles(list);
@@ -174,7 +182,7 @@ const ProjectDetail = () => {
   const addFromCurrent = () => {
     const start = videoRef.current?.currentTime ?? 0;
     const end = Math.min(start + 2, duration || start + 2);
-    const row: SubtitleItem = { id: String(Math.random()), start, end, content: { chinese: "", translateList: [{ ja: "", fiftytonesromaji: "" }] } };
+    const row: SubtitleItem = { id: String(Math.random()), start, end, content: { chinese: "", translateList: [{ ja: "", fiftytones: "", romaji: "" }] } };
     setSubtitles((prev) => [
       ...prev,
       row,
@@ -204,102 +212,57 @@ const ProjectDetail = () => {
     void videoRef.current.play();
   };
 
-  const columns = [
-    { title: "#", width: 48, render: (_: unknown, __: SubtitleItem, idx: number) => idx + 1 },
-    {
-      title: "开始",
-      dataIndex: "start",
-      width: 150,
-      render: (_: unknown, record: SubtitleItem) => (
-        <TimeCell value={record.start} onChange={(v) => {
-          setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, start: Math.min(v, s.end) } : s));
-        }} />
-      )
-    },
-    {
-      title: "结束",
-      dataIndex: "end",
-      width: 150,
-      render: (_: unknown, record: SubtitleItem) => (
-        <TimeCell value={record.end} onChange={(v) => {
-          setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, end: Math.max(v, s.start) } : s));
-        }} />
-      )
-    },
-    {
-      title: "中文",
-      render: (_: unknown, record: SubtitleItem) => (
-        <Input.TextArea
-          autoSize={{ minRows: 1, maxRows: 4 }}
-          value={record.content?.chinese || ""}
-          onChange={(e) => {
-            const val = e.target.value;
-            setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, content: { ...s.content, chinese: val } } : s));
-          }}
-        />
-      )
-    },
-    {
-      title: "日文",
-      render: (_: unknown, record: SubtitleItem) => (
-        <Input.TextArea
-          autoSize={{ minRows: 1, maxRows: 4 }}
-          value={record.content?.translateList?.[0]?.ja || ""}
-          onChange={(e) => {
-            const val = e.target.value;
-            setSubtitles((prev) => prev.map(s => {
-              if (s.id !== record.id) return s;
-              const list = Array.isArray(s.content.translateList) && s.content.translateList.length > 0 ? s.content.translateList.slice() : [{ ja: "", fiftytonesromaji: "" }];
-              list[0] = { ...list[0], ja: val };
-              return { ...s, content: { ...s.content, translateList: list } };
-            }));
-          }}
-        />
-      )
-    },
-    {
-      title: "罗马音",
-      render: (_: unknown, record: SubtitleItem) => (
-        <Input.TextArea
-          autoSize={{ minRows: 1, maxRows: 4 }}
-          value={record.content?.translateList?.[0]?.fiftytonesromaji || ""}
-          onChange={(e) => {
-            const val = e.target.value;
-            setSubtitles((prev) => prev.map(s => {
-              if (s.id !== record.id) return s;
-              const list = Array.isArray(s.content.translateList) && s.content.translateList.length > 0 ? s.content.translateList.slice() : [{ ja: "", fiftytonesromaji: "" }];
-              list[0] = { ...list[0], fiftytonesromaji: val };
-              return { ...s, content: { ...s.content, translateList: list } };
-            }));
-          }}
-        />
-      )
-    },
-    {
-      title: "操作",
-      width: 160,
-      render: (_: unknown, record: SubtitleItem) => (
-        <Space size={8}>
-          <Button size="small" onClick={() => playAt(record.start)}>播放</Button>
-          <Button size="small" type="primary" onClick={() => {
-            void updateSubtitle({
-              variables: {
-                input: {
-                  id: record.id,
-                  startTime: formatTime(record.start),
-                  endTime: formatTime(record.end),
-                  content: record.content,
-                }
-              }
-            }).then(() => refetch());
-          }}>保存</Button>
-          <Popconfirm title="删除此条字幕？" onConfirm={() => deleteRow(record.id)}>
-            <Button size="small" danger>删除</Button>
-          </Popconfirm>
-        </Space>
-      )
+  const openDrawer = (record: SubtitleItem) => {
+    setEditing(record);
+    setDrawerOpen(true);
+    form.setFieldsValue({
+      chinese: record.content?.chinese ?? "",
+      translateList: (record.content?.translateList ?? []).map(it => ({
+        ja: it.ja ?? "",
+        fiftytones: it.fiftytones ?? "",
+        romaji: it.romaji ?? "",
+      }))
+    });
+  };
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setEditing(null);
+    form.resetFields();
+  };
+
+  const saveDrawer = async () => {
+    try {
+      const values = await form.validateFields();
+      const updatedContent: ContentPayload = {
+        chinese: values.chinese ?? "",
+        translateList: (values.translateList || []).map((it: any) => ({
+          ja: String(it?.ja ?? ""),
+          fiftytones: String(it?.fiftytones ?? ""),
+          romaji: String(it?.romaji ?? ""),
+        })),
+      };
+      if (!editing) return;
+      setSubtitles(prev => prev.map(s => s.id === editing.id ? { ...s, content: updatedContent } : s));
+      await updateSubtitle({
+        variables: {
+          input: {
+            id: editing.id,
+            startTime: formatTime(editing.start),
+            endTime: formatTime(editing.end),
+            content: updatedContent,
+          }
+        }
+      });
+      await refetch();
+      closeDrawer();
+      message.success("已保存");
+    } catch (e) {
+      // 校验失败或保存失败
     }
-  ];
+  };
+
+  // 使用 List 渲染每条字幕，保留时间编辑与操作按钮
 
   const uploadProps: UploadProps = {
     beforeUpload: (file) => {
@@ -423,7 +386,7 @@ const ProjectDetail = () => {
       </div>
 
       <div className="col-span-5 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
+        {/* <div className="flex items-center justify-between">
           <Typography.Title level={5} style={{ margin: 0 }}>字幕</Typography.Title>
           <Space>
             <Upload {...uploadProps} accept=".srt,.json" showUploadList={false}>
@@ -432,17 +395,117 @@ const ProjectDetail = () => {
             <Button onClick={exportSrt}>导出 SRT</Button>
             <Button onClick={exportJson}>导出 JSON</Button>
           </Space>
-        </div>
-        <Table
+        </div> */}
+        <List
           size="small"
-          rowKey="id"
+          loading={loading}
           dataSource={subtitles}
-          columns={columns as any}
           pagination={{ pageSize: 10, showSizeChanger: false }}
-          rowClassName={(_record, index) => index === activeSubtitleIndex ? "bg-yellow-50" : ""}
-          sticky
+          renderItem={(record: SubtitleItem) => {
+            const activeId = subtitles[activeSubtitleIndex]?.id;
+            const isActive = activeId && activeId === record.id;
+            return (
+              <List.Item key={record.id} className={isActive ? "bg-yellow-50" : ""}
+                actions={[
+                  <Button key="play" size="small" onClick={() => playAt(record.start)}>播放</Button>,
+                  <Button key="edit" size="small" onClick={() => openDrawer(record)}>编辑</Button>,
+                  <Button key="save" size="small" type="primary" onClick={() => {
+                    void updateSubtitle({
+                      variables: {
+                        input: {
+                          id: record.id,
+                          startTime: formatTime(record.start),
+                          endTime: formatTime(record.end),
+                          content: record.content,
+                        }
+                      }
+                    }).then(() => refetch());
+                  }}>保存</Button>,
+                  <Popconfirm key="del" title="删除此条字幕？" onConfirm={() => deleteRow(record.id)}>
+                    <Button size="small" danger>删除</Button>
+                  </Popconfirm>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={
+                    <div className="flex gap-3 items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 w-10">开始</span>
+                        <TimeCell value={record.start} onChange={(v) => {
+                          setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, start: Math.min(v, s.end) } : s));
+                        }} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 w-10">结束</span>
+                        <TimeCell value={record.end} onChange={(v) => {
+                          setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, end: Math.max(v, s.start) } : s));
+                        }} />
+                      </div>
+                    </div>
+                  }
+                  description={
+                    <div className="mt-2">
+                      <Typography.Paragraph ellipsis={{ rows: 3 }} style={{ margin: 0 }}>
+                        {record.content?.chinese || ""}
+                      </Typography.Paragraph>
+                      <div className="mt-2">
+                        <ContentRender content={record.content} />
+                      </div>
+                    </div>
+                  }
+                />
+              </List.Item>
+            );
+          }}
         />
       </div>
+      <Drawer
+        title="编辑字幕"
+        placement="right"
+        width={520}
+        onClose={closeDrawer}
+        open={drawerOpen}
+        extra={
+          <Space>
+            <Button onClick={closeDrawer}>取消</Button>
+            <Button type="primary" onClick={saveDrawer}>保存</Button>
+          </Space>
+        }
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item name="chinese" label="中文">
+            <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} />
+          </Form.Item>
+          <Form.List name="translateList">
+            {(fields, { add, remove }) => (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Typography.Text>翻译列表</Typography.Text>
+                  <Button size="small" onClick={() => add({ ja: "", fiftytones: "", romaji: "" })}>添加一项</Button>
+                </div>
+                {fields.map((field) => (
+                  <div key={field.key} className="border rounded-md p-2 mb-2">
+                    <div className="grid grid-cols-1 gap-2">
+                      <Form.Item name={[field.name, 'ja']} label="日文">
+                        <Input />
+                      </Form.Item>
+                      <Form.Item name={[field.name, 'fiftytones']} label="五十音">
+                        <Input />
+                      </Form.Item>
+                      <Form.Item name={[field.name, 'romaji']} label="罗马音">
+                        <Input />
+                      </Form.Item>
+                    </div>
+                    <div className="text-right">
+                      <Button danger size="small" onClick={() => remove(field.name)}>删除</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Form.List>
+        </Form>
+      </Drawer>
     </div>
   );
 }
