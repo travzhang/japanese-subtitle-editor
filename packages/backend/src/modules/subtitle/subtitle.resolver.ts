@@ -6,108 +6,20 @@ import {
   Query,
   Resolver,
 } from '@nestjs/graphql';
-import { JSONScalar } from '../../scalars/json.scalar';
 import { SubtitleService } from './subtitle.service';
+import {ProjectOutput} from "./project.output";
+import {ProjectInput} from "./project.input";
 
-@ObjectType()
-class Scope {
-  @Field()
-  buildTarget!: string;
-  @Field(() => [String])
-  includes!: string[];
-  @Field(() => [String])
-  excludes!: string[];
-}
 
-@ObjectType()
-class Repo {
-  @Field()
-  id!: string;
-
-  @Field()
-  pathWithNamespace!: string;
-
-  @Field()
-  description!: string;
-
-  @Field()
-  bu!: string;
-
-  @Field()
-  config!: string;
-
-  @Field()
-  createdAt!: Date;
-
-  @Field()
-  updatedAt!: Date;
-}
-
-@ObjectType()
-class RepoList1 {
-  @Field(() => [JSONScalar])
-  data: unknown[];
-
-  @Field(() => String, { nullable: true })
-  keyword?: string | null;
-}
-
-@ObjectType()
-class RepoCommits {
-  @Field()
-  repoID: string;
-
-  @Field(() => [JSONScalar])
-  commits: unknown[];
-}
-
-@ObjectType()
-class RepoPulls {
-  @Field()
-  repoID!: string;
-
-  @Field(() => [JSONScalar])
-  pulls!: unknown[];
-}
-
-@ObjectType()
-class RepoCommitDetail {
-  @Field()
-  repoID!: string;
-
-  @Field()
-  sha!: string;
-
-  @Field(() => String, { nullable: true })
-  commit?: string | null;
-}
-
-@ObjectType()
-class RepoMutationResult {
-  @Field()
-  ok!: boolean;
-
-  @Field()
-  id!: string;
-}
-
-@ObjectType()
-class RepoUpdateResult {
-  @Field()
-  ok!: boolean;
-
-  @Field()
-  id!: string;
-}
 
 @Resolver()
 export class SubtitleResolver {
-  constructor(private readonly repoService: SubtitleService) {}
-  @Query(() => RepoList1)
-  subtitle(
-    @Args('keyword', { type: () => String, nullable: true }) keyword?: string,
-    @Args('bu', { type: () => [String], nullable: true }) bu?: string[],
+  constructor(private readonly subtitleService: SubtitleService) {}
+  @Query(() => ProjectOutput)
+  project(
+    @Args('input', { type: () => ProjectInput })
+    input: ProjectInput,
   ) {
-    return this.repoService.getRepos();
+    return this.subtitleService.project(input.projectID)
   }
 }

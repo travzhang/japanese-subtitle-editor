@@ -17,13 +17,8 @@ export class SubtitleService {
     private readonly projectRepo: EntityRepository<ProjectEntity>,
   ) {}
 
-  async getRepos(){
-    const s = await this.projectRepo.findAll({
-      where:{}
-    })
-    return {
-      data: s,
-      total: 100
-    }
+  async project(projectID:string){
+    const s = await this.projectRepo.findOne(projectID)
+    return s
   }
 }
