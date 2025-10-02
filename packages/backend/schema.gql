@@ -2,11 +2,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
-type RepoList {
-  data: [JSON!]!
-  keyword: String
-}
-
 type RepoList1 {
   data: [JSON!]!
   keyword: String
@@ -16,6 +11,5 @@ type RepoList1 {
 scalar JSON
 
 type Query {
-  repos(keyword: String, bu: [String!]): RepoList!
   subtitle(keyword: String, bu: [String!]): RepoList1!
 }

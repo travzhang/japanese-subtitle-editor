@@ -6,12 +6,12 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AppController } from './app.controller';
-import { ChModule } from './modules/ch/ch.module';
-import { ConfigModule } from './modules/config/config.module';
-import { CoverageModule } from './modules/coverage/coverage.module';
+// import { ChModule } from './modules/ch/ch.module';
+// import { ConfigModule } from './modules/config/config.module';
+// import { CoverageModule } from './modules/coverage/coverage.module';
 // import { CodeModule } from './modules/code/code.module';
 // import { CoverageModule } from './modules/coverage/coverage.module';
-import { RepoModule } from './modules/repo/repo.module';
+// import { RepoModule } from './modules/repo/repo.module';
 // import { ConfigModule } from './modules/system-config/system-config.module';
 import { JSONScalar } from './scalars/json.scalar';
 import {SubtitleModule} from "./modules/subtitle/subtitle.module";
@@ -19,11 +19,11 @@ import {SubtitleModule} from "./modules/subtitle/subtitle.module";
 @Module({
   imports: [
     MikroOrmModule.forRoot(),
-    ChModule,
-    CoverageModule,
-    RepoModule,
+    // ChModule,
+    // CoverageModule,
+    // RepoModule,
     // CodeModule,
-    ConfigModule,
+    // ConfigModule,
     SubtitleModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'client'),
