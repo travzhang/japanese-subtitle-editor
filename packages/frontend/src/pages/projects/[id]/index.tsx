@@ -53,7 +53,7 @@ function parseSrt(content: string): SubtitleItem[] {
     const start = parseTime(tm[1]);
     const end = parseTime(tm[2]);
     const text = textLines.join("\n");
-    items.push({ id: crypto.randomUUID(), start, end, content: { chinese: text, translateList: [{ ja: "", fiftytonesromaji: "" }] } });
+    items.push({ id: String(Math.random()), start, end, content: { chinese: text, translateList: [{ ja: "", fiftytonesromaji: "" }] } });
   }
   return items.sort((a,b) => a.start - b.start);
 }
@@ -174,7 +174,7 @@ const ProjectDetail = () => {
   const addFromCurrent = () => {
     const start = videoRef.current?.currentTime ?? 0;
     const end = Math.min(start + 2, duration || start + 2);
-    const row: SubtitleItem = { id: crypto.randomUUID(), start, end, content: { chinese: "", translateList: [{ ja: "", fiftytonesromaji: "" }] } };
+    const row: SubtitleItem = { id: String(Math.random()), start, end, content: { chinese: "", translateList: [{ ja: "", fiftytonesromaji: "" }] } };
     setSubtitles((prev) => [
       ...prev,
       row,
@@ -318,7 +318,7 @@ const ProjectDetail = () => {
           try {
             const data = JSON.parse(text) as SubtitleItem[];
             if (Array.isArray(data)) {
-              setSubtitles(data.map((d) => ({ ...d, id: d.id || crypto.randomUUID() })));
+              setSubtitles(data.map((d) => ({ ...d, id: d.id || String(Math.random()) })));
               message.success(`已导入 ${data.length} 条字幕`);
             } else {
               message.error("JSON 格式不正确");

@@ -1,0 +1,5 @@
+query Project($input: ProjectInput!) {
+  project(input: $input) {
+    id
+  }
+}

@@ -17,7 +17,7 @@ scalar DateTime
 
 type SubtitleOutput {
   id: String!
-  projectId: String!
+  projectID: String!
   startTime: String!
   endTime: String!
   content: JSON!
@@ -38,7 +38,7 @@ input ProjectInput {
 }
 
 input SubtitleListInput {
-  projectId: String!
+  projectID: String!
   startAfter: String
   endBefore: String
 }
@@ -50,7 +50,7 @@ type Mutation {
 }
 
 input SubtitleCreateInput {
-  projectId: String!
+  projectID: String!
   startTime: String!
   endTime: String!
   content: JSON!
