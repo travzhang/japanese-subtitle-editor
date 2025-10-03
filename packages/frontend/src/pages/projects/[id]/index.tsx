@@ -1,10 +1,11 @@
 import {useParams} from "react-router-dom";
 import {useEffect, useMemo, useRef, useState} from "react";
-import {Button, Input, Slider, Space, Typography, Upload, message, Popconfirm, Drawer, Form, List, Tooltip} from "antd";
+import {Button, Input, Slider, Space, Typography, message, Popconfirm, Drawer, Form, List, Tooltip} from "antd";
 import {gql, useMutation, useQuery} from "@apollo/client";
-import { PlayCircleOutlined, EditOutlined, SaveOutlined, DeleteOutlined, RetweetOutlined } from "@ant-design/icons";
-import type { UploadProps } from "antd";
+import { PlayCircleOutlined, EditOutlined, SaveOutlined, DeleteOutlined, RetweetOutlined, MenuOutlined } from "@ant-design/icons";
 import ContentRender from "@/components/ContentRender";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import type { DropResult } from '@hello-pangea/dnd';
 
 type TranslateUnit = { ja: string; fiftytones: string; romaji: string };
 type ContentPayload = { chinese: string; translateList: TranslateUnit[] };
@@ -41,38 +42,7 @@ function parseTime(input: string): number {
   return h * 3600 + mi * 60 + se + ms / 1000;
 }
 
-function parseSrt(content: string): SubtitleItem[] {
-  const blocks = content.replace(/\r/g, "").split(/\n\n+/);
-  const items: SubtitleItem[] = [];
-  for (const block of blocks) {
-    const lines = block.split("\n").filter(Boolean);
-    if (lines.length < 2) continue;
-    // optional index line
-    const timeLine = lines[0].includes("-->") ? lines[0] : lines[1];
-    const textLines = lines[0].includes("-->") ? lines.slice(1) : lines.slice(2);
-    const tm = timeLine.match(/(\d{2}:\d{2}:\d{2}[\.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[\.,]\d{3})/);
-    if (!tm) continue;
-    const start = parseTime(tm[1]);
-    const end = parseTime(tm[2]);
-    const text = textLines.join("\n");
-    items.push({ id: String(Math.random()), start, end, content: { chinese: text, translateList: [{ ja: "", fiftytones: "", romaji: "" }] } });
-  }
-  return items.sort((a,b) => a.start - b.start);
-}
-
-function toSrt(items: SubtitleItem[]): string {
-  return items
-    .sort((a,b) => a.start - b.start)
-    .map((it, idx) => {
-      const toSrtTime = (s: number) => formatTime(s).replace(".", ",");
-      return [
-        String(idx + 1),
-        `${toSrtTime(it.start)} --> ${toSrtTime(it.end)}`,
-        it.content?.chinese || ""
-      ].join("\n");
-    })
-    .join("\n\n");
-}
+//
 
 const TimeCell: React.FC<{
   value: number;
@@ -90,7 +60,7 @@ const TimeCell: React.FC<{
       onBlur={() => {
         const v = parseTime(display);
         if (isNaN(v)) {
-          message.error("时间格式应为 00:00:00.000");
+          message.error("時間の形式は 00:00:00.000 である必要があります");
           setDisplay(formatTime(value));
         } else {
           onChange(v);
@@ -110,6 +80,7 @@ const ProjectDetail = () => {
   const [editing, setEditing] = useState<SubtitleItem | null>(null);
   const [form] = Form.useForm();
   const [loop, setLoop] = useState<{ id: string; start: number; end: number } | null>(null);
+  // 保留占位，后续若需要行级编辑状态可启用
 
   const pid = (projectID as any).id as string | undefined;
 
@@ -280,7 +251,7 @@ const ProjectDetail = () => {
       });
       await refetch();
       closeDrawer();
-      message.success("已保存");
+      message.success("保存しました");
     } catch (e) {
       // 校验失败或保存失败
     }
@@ -288,63 +259,24 @@ const ProjectDetail = () => {
 
   // 使用 List 渲染每条字幕，保留时间编辑与操作按钮
 
-  const uploadProps: UploadProps = {
-    beforeUpload: (file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const text = String(reader.result || "");
-        if (file.name.toLowerCase().endsWith(".srt")) {
-          try {
-            const items = parseSrt(text);
-            setSubtitles(items);
-            message.success(`已导入 ${items.length} 条字幕`);
-          } catch (e) {
-            message.error("SRT 解析失败");
-          }
-        } else if (file.name.toLowerCase().endsWith(".json")) {
-          try {
-            const data = JSON.parse(text) as SubtitleItem[];
-            if (Array.isArray(data)) {
-              setSubtitles(data.map((d) => ({ ...d, id: d.id || String(Math.random()) })));
-              message.success(`已导入 ${data.length} 条字幕`);
-            } else {
-              message.error("JSON 格式不正确");
-            }
-          } catch (e) {
-            message.error("JSON 解析失败");
-          }
-        } else {
-          message.warning("仅支持 .srt 或 .json 文件");
-        }
-      };
-      reader.readAsText(file);
-      return false; // 阻止上传
-    }
-  };
-
-  const exportSrt = () => {
-    const blob = new Blob([toSrt(subtitles)], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `subtitles_${projectID.id || "project"}.srt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportJson = () => {
-    const blob = new Blob([JSON.stringify(subtitles, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `subtitles_${projectID.id || "project"}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  
 
   const activeSubtitleIndex = useMemo(() => {
     return subtitles.findIndex(s => currentTime >= s.start && currentTime <= s.end);
   }, [currentTime, subtitles]);
+
+  const onDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const src = result.source.index;
+    const dst = result.destination.index;
+    if (src === dst) return;
+    setSubtitles(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(src, 1);
+      next.splice(dst, 0, moved);
+      return next;
+    });
+  };
 
   return (
     <div className="p-4 h-full grid grid-cols-12 gap-4">
@@ -361,11 +293,11 @@ const ProjectDetail = () => {
         </div>
         <div className="px-2 py-3 rounded-md border border-gray-200">
           <div className="flex items-center justify-between mb-2">
-            <Typography.Text>时间轴</Typography.Text>
+            <Typography.Text>タイムライン</Typography.Text>
             <Space>
               <Button size="small" onClick={() => playAt(Math.max(0, currentTime - 3))}>-3s</Button>
-              <Button size="small" onClick={() => playAt(currentTime)}>播放</Button>
-              <Button size="small" onClick={() => addFromCurrent()}>在当前位置添加</Button>
+              <Button size="small" onClick={() => playAt(currentTime)}>再生</Button>
+              <Button size="small" onClick={() => addFromCurrent()}>現在位置に追加</Button>
             </Space>
           </div>
           <Slider
@@ -410,131 +342,171 @@ const ProjectDetail = () => {
       </div>
 
       <div className="col-span-5 flex flex-col gap-3">
-        {/* <div className="flex items-center justify-between">
-          <Typography.Title level={5} style={{ margin: 0 }}>字幕</Typography.Title>
-          <Space>
-            <Upload {...uploadProps} accept=".srt,.json" showUploadList={false}>
-              <Button>导入</Button>
-            </Upload>
-            <Button onClick={exportSrt}>导出 SRT</Button>
-            <Button onClick={exportJson}>导出 JSON</Button>
-          </Space>
-        </div> */}
-        <List
-          size="small"
-          loading={loading}
-          dataSource={subtitles}
-          pagination={{ pageSize: 10, showSizeChanger: false }}
-          renderItem={(record: SubtitleItem) => {
-            const activeId = subtitles[activeSubtitleIndex]?.id;
-            const isActive = activeId && activeId === record.id;
-            return (
-              <List.Item key={record.id} className={isActive ? "group bg-yellow-50" : "group"}>
-                <List.Item.Meta
-                  title={
-                    <div className="flex gap-3 items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 w-10">开始</span>
-                        <TimeCell value={record.start} onChange={(v) => {
-                          setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, start: Math.min(v, s.end) } : s));
-                        }} />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 w-10">结束</span>
-                        <TimeCell value={record.end} onChange={(v) => {
-                          setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, end: Math.max(v, s.start) } : s));
-                        }} />
-                      </div>
-                      <div className="ml-auto flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <Tooltip title="播放">
-                          <Button size="small" type="text" icon={<PlayCircleOutlined />} onClick={() => playAt(record.start)} />
-                        </Tooltip>
-                        <Tooltip title="循环播放">
-                          <Button size="small" type={loop?.id === record.id ? "primary" : "text"} icon={<RetweetOutlined />} onClick={() => toggleLoop(record)} />
-                        </Tooltip>
-                        <Tooltip title="编辑">
-                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openDrawer(record)} />
-                        </Tooltip>
-                        <Tooltip title="保存">
-                          <Button size="small" type="text" icon={<SaveOutlined />} onClick={() => {
-                            void updateSubtitle({
-                              variables: {
-                                input: {
-                                  id: record.id,
-                                  startTime: formatTime(record.start),
-                                  endTime: formatTime(record.end),
-                                  content: record.content,
+        {/* <div className="flex items-center justify-between"> */}
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="subtitle-list">
+            {(provided: any) => (
+              <div ref={provided.innerRef} {...provided.droppableProps}>
+                <List
+                  size="small"
+                  loading={loading}
+                  dataSource={subtitles}
+                  pagination={{ pageSize: 10, showSizeChanger: false }}
+                  renderItem={(record: SubtitleItem, index: number) => {
+                    const activeId = subtitles[activeSubtitleIndex]?.id;
+                    const isActive = activeId && activeId === record.id;
+                    return (
+                      <Draggable draggableId={record.id} index={index}>
+                        {(dragProvided: any) => (
+                          <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} {...dragProvided.dragHandleProps}>
+                            <List.Item key={record.id} className={isActive ? "group bg-yellow-50" : "group"}>
+                              <List.Item.Meta
+                                title={
+                                  <div className="flex gap-3 items-center">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-500 w-10">開始</span>
+                                      <TimeCell value={record.start} onChange={(v) => {
+                                        setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, start: Math.min(v, s.end) } : s));
+                                      }} />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-500 w-10">終了</span>
+                                      <TimeCell value={record.end} onChange={(v) => {
+                                        setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, end: Math.max(v, s.start) } : s));
+                                      }} />
+                                    </div>
+                                    <div className="ml-auto flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                                      <Tooltip title="再生">
+                                        <Button size="small" type="text" icon={<PlayCircleOutlined />} onClick={() => playAt(record.start)} />
+                                      </Tooltip>
+                                      <Tooltip title="ループ再生">
+                                        <Button size="small" type={loop?.id === record.id ? "primary" : "text"} icon={<RetweetOutlined />} onClick={() => toggleLoop(record)} />
+                                      </Tooltip>
+                                      <Tooltip title="編集">
+                                        <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openDrawer(record)} />
+                                      </Tooltip>
+                                      <Tooltip title="保存">
+                                        <Button size="small" type="text" icon={<SaveOutlined />} onClick={() => {
+                                          void updateSubtitle({
+                                            variables: {
+                                              input: {
+                                                id: record.id,
+                                                startTime: formatTime(record.start),
+                                                endTime: formatTime(record.end),
+                                                content: record.content,
+                                              }
+                                            }
+                                          }).then(() => refetch());
+                                        }} />
+                                      </Tooltip>
+                                      <Popconfirm title="この字幕を削除しますか？" onConfirm={() => deleteRow(record.id)}>
+                                        <Tooltip title="削除">
+                                          <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                                        </Tooltip>
+                                      </Popconfirm>
+                                    </div>
+                                  </div>
                                 }
-                              }
-                            }).then(() => refetch());
-                          }} />
-                        </Tooltip>
-                        <Popconfirm title="删除此条字幕？" onConfirm={() => deleteRow(record.id)}>
-                          <Tooltip title="删除">
-                            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-                          </Tooltip>
-                        </Popconfirm>
-                      </div>
-                    </div>
-                  }
-                  description={
-                    <div className="mt-2">
-                      <Typography.Paragraph ellipsis={{ rows: 3 }} style={{ margin: 0 }}>
-                        {record.content?.chinese || ""}
-                      </Typography.Paragraph>
-                      <div className="mt-2">
-                        <ContentRender content={record.content} />
-                      </div>
-                    </div>
-                  }
+                                description={
+                                  <div className="mt-2">
+                                    <Typography.Paragraph ellipsis={{ rows: 3 }} style={{ margin: 0 }}>
+                                      {record.content?.chinese || ""}
+                                    </Typography.Paragraph>
+                                    <div className="mt-2">
+                                      <ContentRender content={record.content} />
+                                    </div>
+                                  </div>
+                                }
+                              />
+                            </List.Item>
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  }}
                 />
-              </List.Item>
-            );
-          }}
-        />
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       </div>
       <Drawer
-        title="编辑字幕"
+        title="字幕を編集"
         placement="right"
-        width={520}
+        width="50%"
         onClose={closeDrawer}
         open={drawerOpen}
         extra={
           <Space>
-            <Button onClick={closeDrawer}>取消</Button>
+            <Button onClick={closeDrawer}>キャンセル</Button>
             <Button type="primary" onClick={saveDrawer}>保存</Button>
           </Space>
         }
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="chinese" label="中文">
+          <Form.Item name="chinese" label="中国語">
             <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} />
           </Form.Item>
           <Form.List name="translateList">
-            {(fields, { add, remove }) => (
+            {(fields, { add, remove, move }) => (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <Typography.Text>翻译列表</Typography.Text>
-                  <Button size="small" onClick={() => add({ ja: "", fiftytones: "", romaji: "" })}>添加一项</Button>
+                  <Typography.Text>翻訳リスト</Typography.Text>
+                  <Button size="small" onClick={() => add({ ja: "", fiftytones: "", romaji: "" })}>項目を追加</Button>
                 </div>
-                {fields.map((field) => (
-                  <div key={field.key} className="border rounded-md p-2 mb-2">
-                    <div className="grid grid-cols-1 gap-2">
-                      <Form.Item name={[field.name, 'ja']} label="日文">
-                        <Input />
-                      </Form.Item>
-                      <Form.Item name={[field.name, 'fiftytones']} label="五十音">
-                        <Input />
-                      </Form.Item>
-                      <Form.Item name={[field.name, 'romaji']} label="罗马音">
-                        <Input />
-                      </Form.Item>
-                    </div>
-                    <div className="text-right">
-                      <Button danger size="small" onClick={() => remove(field.name)}>删除</Button>
-                    </div>
-                  </div>
-                ))}
+                <DragDropContext
+                  onDragEnd={(result: DropResult) => {
+                    if (!result.destination) return;
+                    if (result.source.index === result.destination.index) return;
+                    move(result.source.index, result.destination.index);
+                  }}
+                >
+                  <Droppable droppableId="translate-table">
+                    {(provided: any) => (
+                      <div ref={provided.innerRef} {...provided.droppableProps}>
+                        <div className="grid grid-cols-12 gap-2 px-2 py-2 bg-gray-50 rounded border">
+                          <div className="col-span-4 font-medium">日本語</div>
+                          <div className="col-span-4 font-medium">五十音</div>
+                          <div className="col-span-3 font-medium">ローマ字</div>
+                          <div className="col-span-1 font-medium text-right">操作</div>
+                        </div>
+                        {fields.map((field, idx) => (
+                          <Draggable key={field.key} draggableId={String(field.key)} index={idx}>
+                            {(dragProvided: any) => (
+                              <div
+                                ref={dragProvided.innerRef}
+                                {...dragProvided.draggableProps}
+                                className="grid grid-cols-12 gap-2 items-center px-2 py-2 border-b"
+                              >
+                                <div className="col-span-4 flex items-center gap-2">
+                                  <span className="cursor-grab" {...dragProvided.dragHandleProps}><MenuOutlined /></span>
+                                  <Form.Item name={[field.name, 'ja']} style={{ margin: 0, width: '100%' }}>
+                                    <Input size="small" />
+                                  </Form.Item>
+                                </div>
+                                <div className="col-span-4">
+                                  <Form.Item name={[field.name, 'fiftytones']} style={{ margin: 0 }}>
+                                    <Input size="small" />
+                                  </Form.Item>
+                                </div>
+                                <div className="col-span-3">
+                                  <Form.Item name={[field.name, 'romaji']} style={{ margin: 0 }}>
+                                    <Input size="small" />
+                                  </Form.Item>
+                                </div>
+                                <div className="col-span-1 text-right">
+                                  <Button danger size="small" onClick={() => remove(field.name)}>削除</Button>
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
               </div>
             )}
           </Form.List>

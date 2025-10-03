@@ -15,6 +15,7 @@
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@apollo/client": "^3",
     "@graphql-typed-document-node/core": "^3.2.0",
+    "@hello-pangea/dnd": "^16.6.0",
     "@ibm/plex-mono": "^1.1.0",
     "@monaco-editor/react": "^4.7.0",
     "ahooks": "^3.9.4",

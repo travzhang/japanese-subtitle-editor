@@ -21,12 +21,12 @@ i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    fallbackLng: 'en',
+    fallbackLng: 'ja',
     interpolation: {
       escapeValue: false,
     },
     resources: resources,
-    lng: localStorage.getItem('language') || 'cn',
+    lng: localStorage.getItem('language') || 'ja',
   });
 
 export default i18n;
