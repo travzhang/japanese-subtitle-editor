@@ -285,7 +285,7 @@ const ProjectDetail = () => {
           <video
             ref={videoRef}
             className="w-full rounded-md bg-black"
-            src={'http://192.168.3.52:3000/public/app/f7979606eb56f96f0f2f1f792cf7f2dcc8fbce01eda89db0d0dd2488413ce1b5.mp4'}
+            src={'https://wrzhang25-subtitle.oss-ap-northeast-1.aliyuncs.com/1.mp4'}
             controls
             onLoadedMetadata={onLoadedMetadata}
             onTimeUpdate={onTimeUpdate}
@@ -464,23 +464,29 @@ const ProjectDetail = () => {
                 >
                   <Droppable droppableId="translate-table">
                     {(provided: any) => (
-                      <div ref={provided.innerRef} {...provided.droppableProps}>
-                        <div className="grid grid-cols-12 gap-2 px-2 py-2 bg-gray-50 rounded border">
-                          <div className="col-span-4 font-medium">日本語</div>
-                          <div className="col-span-4 font-medium">五十音</div>
-                          <div className="col-span-3 font-medium">ローマ字</div>
-                          <div className="col-span-1 font-medium text-right">操作</div>
+                      <div ref={provided.innerRef} {...provided.droppableProps} className="rounded-md border overflow-hidden">
+                        <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-gray-50 border-b sticky top-0 z-10">
+                          <div className="col-span-4 font-medium text-gray-700">日本語</div>
+                          <div className="col-span-4 font-medium text-gray-700">五十音</div>
+                          <div className="col-span-3 font-medium text-gray-700">ローマ字</div>
+                          <div className="col-span-1 font-medium text-right text-gray-700">操作</div>
                         </div>
                         {fields.map((field, idx) => (
                           <Draggable key={field.key} draggableId={String(field.key)} index={idx}>
-                            {(dragProvided: any) => (
+                            {(dragProvided: any, snapshot: any) => (
                               <div
                                 ref={dragProvided.innerRef}
                                 {...dragProvided.draggableProps}
-                                className="grid grid-cols-12 gap-2 items-center px-2 py-2 border-b"
+                                className={`grid grid-cols-12 gap-2 items-center px-3 py-2 transition-all ${idx % 2 ? 'bg-gray-50' : 'bg-white'} ${snapshot.isDragging ? 'shadow-sm ring-1 ring-blue-200 bg-white' : ''}`}
                               >
                                 <div className="col-span-4 flex items-center gap-2">
-                                  <span className="cursor-grab" {...dragProvided.dragHandleProps}><MenuOutlined /></span>
+                                  <Button
+                                    size="small"
+                                    type="text"
+                                    icon={<MenuOutlined />}
+                                    className="cursor-grab text-gray-500 hover:text-gray-700"
+                                    {...dragProvided.dragHandleProps}
+                                  />
                                   <Form.Item name={[field.name, 'ja']} style={{ margin: 0, width: '100%' }}>
                                     <Input size="small" />
                                   </Form.Item>
@@ -496,7 +502,7 @@ const ProjectDetail = () => {
                                   </Form.Item>
                                 </div>
                                 <div className="col-span-1 text-right">
-                                  <Button danger size="small" onClick={() => remove(field.name)}>削除</Button>
+                                  <Button danger size="small" type="text" onClick={() => remove(field.name)}>削除</Button>
                                 </div>
                               </div>
                             )}
