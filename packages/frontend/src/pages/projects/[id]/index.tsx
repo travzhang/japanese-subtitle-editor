@@ -2,7 +2,7 @@ import {useParams} from "react-router-dom";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {Button, Input, Slider, Space, Typography, Upload, message, Popconfirm, Drawer, Form, List, Tooltip} from "antd";
 import {gql, useMutation, useQuery} from "@apollo/client";
-import { PlayCircleOutlined, EditOutlined, SaveOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlayCircleOutlined, EditOutlined, SaveOutlined, DeleteOutlined, RetweetOutlined } from "@ant-design/icons";
 import type { UploadProps } from "antd";
 import ContentRender from "@/components/ContentRender";
 
@@ -109,6 +109,7 @@ const ProjectDetail = () => {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [editing, setEditing] = useState<SubtitleItem | null>(null);
   const [form] = Form.useForm();
+  const [loop, setLoop] = useState<{ id: string; start: number; end: number } | null>(null);
 
   const pid = (projectID as any).id as string | undefined;
 
@@ -167,7 +168,8 @@ const ProjectDetail = () => {
       const content: ContentPayload = { chinese: String(raw.chinese ?? ""), translateList };
       return { id: s.id as string, start, end, content } as SubtitleItem;
     });
-    setSubtitles(list);
+    const sorted = [...list].sort((a,b) => a.start - b.start);
+    setSubtitles(sorted);
   }, [data]);
 
   const onLoadedMetadata = () => {
@@ -177,6 +179,16 @@ const ProjectDetail = () => {
 
   const onTimeUpdate = () => {
     const t = videoRef.current?.currentTime ?? 0;
+    // 循环播放逻辑：若开启循环且到达片段末尾，跳回片段开始
+    if (videoRef.current && loop) {
+      const { start, end } = loop;
+      if (isFinite(start) && isFinite(end) && end > start) {
+        if (t > end - 0.01) {
+          videoRef.current.currentTime = Math.max(0, start);
+          void videoRef.current.play();
+        }
+      }
+    }
     setCurrentTime(t);
   };
 
@@ -211,6 +223,17 @@ const ProjectDetail = () => {
     if (!videoRef.current) return;
     videoRef.current.currentTime = Math.max(0, Math.min(time, duration || time));
     void videoRef.current.play();
+  };
+
+  const toggleLoop = (record: SubtitleItem) => {
+    setLoop((prev) => {
+      if (prev?.id === record.id) return null;
+      return { id: record.id, start: record.start, end: record.end };
+    });
+    if (videoRef.current) {
+      videoRef.current.currentTime = Math.max(0, Math.min(record.start, duration || record.start));
+      void videoRef.current.play();
+    }
   };
 
   const openDrawer = (record: SubtitleItem) => {
@@ -425,6 +448,9 @@ const ProjectDetail = () => {
                       <div className="ml-auto flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                         <Tooltip title="播放">
                           <Button size="small" type="text" icon={<PlayCircleOutlined />} onClick={() => playAt(record.start)} />
+                        </Tooltip>
+                        <Tooltip title="循环播放">
+                          <Button size="small" type={loop?.id === record.id ? "primary" : "text"} icon={<RetweetOutlined />} onClick={() => toggleLoop(record)} />
                         </Tooltip>
                         <Tooltip title="编辑">
                           <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openDrawer(record)} />

@@ -27,9 +27,12 @@ export class SubtitleService {
     const where: any = { projectID: input.projectID };
     if (input.startAfter) where.startTime = { $gte: input.startAfter };
     if (input.endBefore) where.endTime = { $lte: input.endBefore };
-    return this.subtitleRepo.find({
-
-    });
+    return this.subtitleRepo.find(
+      where,
+      {
+        orderBy: { startTime: 'asc' },
+      },
+    );
   }
 
   async create(input: SubtitleCreateInput): Promise<SubtitleEntity> {
