@@ -1,7 +1,8 @@
 import {useParams} from "react-router-dom";
 import {useEffect, useMemo, useRef, useState} from "react";
-import {Button, Input, Slider, Space, Typography, Upload, message, Popconfirm, Drawer, Form, List} from "antd";
+import {Button, Input, Slider, Space, Typography, Upload, message, Popconfirm, Drawer, Form, List, Tooltip} from "antd";
 import {gql, useMutation, useQuery} from "@apollo/client";
+import { PlayCircleOutlined, EditOutlined, SaveOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { UploadProps } from "antd";
 import ContentRender from "@/components/ContentRender";
 
@@ -405,27 +406,7 @@ const ProjectDetail = () => {
             const activeId = subtitles[activeSubtitleIndex]?.id;
             const isActive = activeId && activeId === record.id;
             return (
-              <List.Item key={record.id} className={isActive ? "bg-yellow-50" : ""}
-                actions={[
-                  <Button key="play" size="small" onClick={() => playAt(record.start)}>播放</Button>,
-                  <Button key="edit" size="small" onClick={() => openDrawer(record)}>编辑</Button>,
-                  <Button key="save" size="small" type="primary" onClick={() => {
-                    void updateSubtitle({
-                      variables: {
-                        input: {
-                          id: record.id,
-                          startTime: formatTime(record.start),
-                          endTime: formatTime(record.end),
-                          content: record.content,
-                        }
-                      }
-                    }).then(() => refetch());
-                  }}>保存</Button>,
-                  <Popconfirm key="del" title="删除此条字幕？" onConfirm={() => deleteRow(record.id)}>
-                    <Button size="small" danger>删除</Button>
-                  </Popconfirm>,
-                ]}
-              >
+              <List.Item key={record.id} className={isActive ? "group bg-yellow-50" : "group"}>
                 <List.Item.Meta
                   title={
                     <div className="flex gap-3 items-center">
@@ -440,6 +421,33 @@ const ProjectDetail = () => {
                         <TimeCell value={record.end} onChange={(v) => {
                           setSubtitles((prev) => prev.map(s => s.id === record.id ? { ...s, end: Math.max(v, s.start) } : s));
                         }} />
+                      </div>
+                      <div className="ml-auto flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <Tooltip title="播放">
+                          <Button size="small" type="text" icon={<PlayCircleOutlined />} onClick={() => playAt(record.start)} />
+                        </Tooltip>
+                        <Tooltip title="编辑">
+                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openDrawer(record)} />
+                        </Tooltip>
+                        <Tooltip title="保存">
+                          <Button size="small" type="text" icon={<SaveOutlined />} onClick={() => {
+                            void updateSubtitle({
+                              variables: {
+                                input: {
+                                  id: record.id,
+                                  startTime: formatTime(record.start),
+                                  endTime: formatTime(record.end),
+                                  content: record.content,
+                                }
+                              }
+                            }).then(() => refetch());
+                          }} />
+                        </Tooltip>
+                        <Popconfirm title="删除此条字幕？" onConfirm={() => deleteRow(record.id)}>
+                          <Tooltip title="删除">
+                            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                          </Tooltip>
+                        </Popconfirm>
                       </div>
                     </div>
                   }
